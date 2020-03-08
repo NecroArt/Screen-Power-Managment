@@ -4,6 +4,13 @@
 #include "framework.h"
 #include "Screen Power Managment.h"
 #include "powerbase.h"
+#include "shellapi.h"
+#include "combaseapi.h"
+#include "strsafe.h"
+#include "Commctrl.h"
+
+//#pragma comment(lib,"Comctl32.lib")
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #define MAX_LOADSTRING 100
 
@@ -17,6 +24,9 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
+NOTIFYICONDATA nid = {};
+
 
 bool applyVideoTimeout(/*DWORD newtimeOut*/)
 {
@@ -35,9 +45,9 @@ bool applyVideoTimeout(/*DWORD newtimeOut*/)
 
 	DWORD newtimeOut = 60;
 
-	if (cur_timeOut > 5)
+	if (cur_timeOut > 60)
 	{
-		newtimeOut = 5;
+		newtimeOut = 60;
 	}
 	else
 	{
@@ -71,25 +81,6 @@ DWORD getVideoTimeout()
 	return powerPolicy.VideoTimeout;
 }
 
-//LRESULT CALLBACK WndProc(HWND hWnd, UINT uMessage, WPARAM wParam, LPARAM lParam)
-//{
-//	static UINT s_uTaskbarRestart;
-//
-//	/*switch (uMessage)
-//	{
-//	case WM_CREATE:
-//		s_uTaskbarRestart = RegisterWindowMessage(TEXT("TaskbarCreated"));
-//		break;
-//
-//	default:
-//		if (uMessage == s_uTaskbarRestart)
-//			AddTaskbarIcons();
-//		break;
-//	}*/
-//
-//	return DefWindowProc(hWnd, uMessage, wParam, lParam);
-//}
-
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -98,9 +89,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Place code here.
-
-	applyVideoTimeout(/*90*/);
+    applyVideoTimeout(/*90*/);
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -180,6 +169,33 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       return FALSE;
    }
 
+   // Do NOT set the NIF_INFO flag.
+
+   nid.uVersion = NOTIFYICON_VERSION_4;
+   nid.cbSize = sizeof(nid);
+   nid.hWnd = hWnd;
+   nid.uFlags = NIF_ICON | NIF_TIP | NIF_GUID;
+
+   // Note: This is an example GUID only and should not be used.
+   // Normally, you should use a GUID-generating tool to provide the value to
+   // assign to guidItem.
+   GUID gidReference;
+   HRESULT hCreateGuid = CoCreateGuid(&gidReference);
+
+   //nid.guidItem = gidReference;
+
+   // This text will be shown as the icon's tooltip.
+   StringCchCopy(nid.szTip, ARRAYSIZE(nid.szTip), L"Test application");
+
+   // Load the icon for high DPI.
+   LoadIconMetric(hInst, MAKEINTRESOURCE(IDI_SMALL), LIM_SMALL, &(nid.hIcon));
+
+   //// Show the notification.
+   Shell_NotifyIcon(NIM_ADD, &nid) ? S_OK : E_FAIL;
+
+   //// Set the version
+   Shell_NotifyIcon(NIM_SETVERSION, &nid);
+
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
@@ -242,6 +258,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
+        Shell_NotifyIcon(NIM_DELETE, &nid);
+
         PostQuitMessage(0);
         break;
     default:
